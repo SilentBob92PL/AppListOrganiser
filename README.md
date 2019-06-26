@@ -1,6 +1,7 @@
 This is my AppList Organiser for GreenLuma Reborn by Steam006.
 
-Thanks for greet app to Steam006.
+Thanks for great app to Steam006.
+https://cs.rin.ru/forum/viewtopic.php?f=29&t=80797
 
 
 
