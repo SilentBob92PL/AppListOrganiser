@@ -3,7 +3,7 @@ This is my AppList Organiser for GreenLuma Reborn by Steam006.
 Thanks for great app to Steam006.
 https://cs.rin.ru/forum/viewtopic.php?f=29&t=80797
 
-
+To work you need Microsoft .NET Framework 4.5.0 or newer.
 
 Usage:
 - On start select your Steam directory. (If found is loaded from registry).
