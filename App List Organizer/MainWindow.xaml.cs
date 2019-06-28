@@ -621,6 +621,8 @@ namespace App_List_Organizer
                         }
                         cBox_profiles.SelectedIndex = cBox_profiles.Items.Count - 1;
                     }
+
+                    configFile.SaveFile(configFilePath);
                 }
             }
         }
