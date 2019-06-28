@@ -17,5 +17,15 @@ Usage:
 
 - To delete entry select it and click Del on keyboard
 
-- To save list click on Save
+- To export list to AppList folder click on Export
+
+
+Profiles:
+
+- Profile --AppList Folder-- is a list of id from AppList folder
+- Buttons:
+	- Add: Add new profile
+	- Copy: Copy selected profile to new profile
+	- Delete: Delete selected profile
+	- Save: Save list to profile
 
