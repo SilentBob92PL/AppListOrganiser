@@ -28,17 +28,30 @@ namespace App_List_Organizer
         private dynamic idlist;
         private bool isLoaded = false;
         public string appListPath;
+        private bool isNewList = false;
+
+        private string programPath = System.AppDomain.CurrentDomain.BaseDirectory;
+        private string appListFilePath;
+        private string sortedListFilePath = System.AppDomain.CurrentDomain.BaseDirectory + @"config\sortedlist.txt";
+        private string configFilePath = System.AppDomain.CurrentDomain.BaseDirectory + @"config\config.ini";
+
         public MainWindow()
         {
+
+            appListFilePath = programPath + @"config\applist.txt";
+            sortedListFilePath = programPath + @"config\sortedlist.txt";
+            configFilePath = programPath + @"config\config.ini";
+            Directory.CreateDirectory(programPath + "config");
+
             InitializeComponent();
             nlist = CloneUsingXaml(listBox.Items[0]) as Grid;
             listBox.Items.RemoveAt(0);
 
-            
 
-            for(int i = 1; i > 10; i++)
+
+            for (int i = 1; i > 10; i++)
             {
-                int index =  listBox.Items.Add(CloneUsingXaml(nlist));
+                int index = listBox.Items.Add(CloneUsingXaml(nlist));
                 Grid tgrid = listBox.Items[index] as Grid;
                 TextBlock ttext = tgrid.Children[0] as TextBlock;
                 ttext.Text = "Dupa " + i;
@@ -46,30 +59,29 @@ namespace App_List_Organizer
             }
 
             LoadAll();
-           
-        }
 
+        }
+        
         private async void LoadAll()
         {
             await Task.Run(() => {
-                bool sciagac = false;
-                string appListFilePath = System.AppDomain.CurrentDomain.BaseDirectory + "applist.txt";
-                string configFilePath = System.AppDomain.CurrentDomain.BaseDirectory + "config.ini";
+                
+                
                 if (File.Exists(appListFilePath) && File.Exists(configFilePath))
                 {
                     FileInfo fi = new FileInfo(appListFilePath);
                     if (fi.Length.ToString() != File.ReadAllText(configFilePath))
                     {
-                        sciagac = true;
+                        isNewList = true;
                     }
                 }
                 else
                 {
-                    sciagac = true;
+                    isNewList = true;
                 }
 
                 string thtml = "";
-                if (sciagac)
+                if (isNewList)
                 {
                     File.WriteAllLines(appListFilePath, new[] { ReadTextFromUrl(@"http://api.steampowered.com/ISteamApps/GetAppList/v2/") });
                     thtml = ReadTextFromUrl(@"http://api.steampowered.com/ISteamApps/GetAppList/v2/");
@@ -154,9 +166,18 @@ namespace App_List_Organizer
             }
             Newtonsoft.Json.Linq.JArray tidlist = idlist;
             var idlistL = from x in tidlist select x["name"].ToString();
+            List<String> idListSorted;
+            if (isNewList || !File.Exists(sortedListFilePath))
+            {
+                idListSorted = idlistL.CustomSort().ToList();
+                File.WriteAllText(sortedListFilePath, JsonConvert.SerializeObject(idListSorted));
+            }
+            else
+            {
+                idListSorted = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(sortedListFilePath));
+            }
 
-            var test1 = idlistL.CustomSort().ToList();
-            comboBox.ItemsSource = test1;
+            comboBox.ItemsSource = idListSorted;
             isLoaded = true;
 
         }
@@ -340,6 +361,9 @@ namespace App_List_Organizer
             if(temptext != comboBox.Text)
             {
                 comboBox.IsDropDownOpen = true;
+                System.Windows.Controls.TextBox tb = (System.Windows.Controls.TextBox)comboBox.Template.FindName("PART_EditableTextBox", comboBox);
+                tb.Select(tb.Text.Length, 0);
+
             }
             loadfromname();
         }
