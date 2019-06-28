@@ -15,6 +15,7 @@ using Microsoft.Win32;
 using System.Net;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using Microsoft.VisualBasic;
 
 namespace App_List_Organizer
 {
@@ -29,19 +30,22 @@ namespace App_List_Organizer
         private bool isLoaded = false;
         public string appListPath;
         private bool isNewList = false;
+        private ConfigFile configFile;
+        
 
         private string programPath = System.AppDomain.CurrentDomain.BaseDirectory;
-        private string appListFilePath;
         private string sortedListFilePath = System.AppDomain.CurrentDomain.BaseDirectory + @"config\sortedlist.txt";
         private string configFilePath = System.AppDomain.CurrentDomain.BaseDirectory + @"config\config.ini";
 
         public MainWindow()
         {
 
-            appListFilePath = programPath + @"config\applist.txt";
+  
             sortedListFilePath = programPath + @"config\sortedlist.txt";
             configFilePath = programPath + @"config\config.ini";
             Directory.CreateDirectory(programPath + "config");
+
+            configFile = new ConfigFile().LoadFile(configFilePath);
 
             InitializeComponent();
             nlist = CloneUsingXaml(listBox.Items[0]) as Grid;
@@ -65,12 +69,29 @@ namespace App_List_Organizer
         private async void LoadAll()
         {
             await Task.Run(() => {
-                
-                
-                if (File.Exists(appListFilePath) && File.Exists(configFilePath))
+
+                bool isDownloaded = false;
+                string thtml = ReadTextFromUrl(@"http://api.steampowered.com/ISteamApps/GetAppList/v2/");
+                try
                 {
-                    FileInfo fi = new FileInfo(appListFilePath);
-                    if (fi.Length.ToString() != File.ReadAllText(configFilePath))
+                    idlist = JsonConvert.DeserializeObject(thtml);
+                    isDownloaded = true;
+                }
+                catch(Exception e)
+                {
+                    System.Windows.Forms.MessageBox.Show("Cant download list.", "Cant download list trying to load offline file.", MessageBoxButtons.OK);
+                }
+
+                
+                idlist = idlist["applist"]["apps"];
+
+                
+                if (File.Exists(sortedListFilePath))
+                {
+                    Console.WriteLine(thtml.Length);
+                    Console.WriteLine(configFile.listFileSize);
+                    
+                    if (thtml.Length != configFile.listFileSize)
                     {
                         isNewList = true;
                     }
@@ -80,43 +101,70 @@ namespace App_List_Organizer
                     isNewList = true;
                 }
 
-                string thtml = "";
-                if (isNewList)
+                if (!isDownloaded)
                 {
-                    File.WriteAllLines(appListFilePath, new[] { ReadTextFromUrl(@"http://api.steampowered.com/ISteamApps/GetAppList/v2/") });
-                    thtml = ReadTextFromUrl(@"http://api.steampowered.com/ISteamApps/GetAppList/v2/");
-                    FileInfo fi = new FileInfo(appListFilePath);
-                    File.WriteAllText(configFilePath, fi.Length.ToString());
+                    if (File.Exists(sortedListFilePath))
+                    {
+                        isNewList = false;
+                    }
+                    else
+                    {
+                        var selectedOption = System.Windows.Forms.MessageBox.Show("There no offline files.", "There no offline files.", MessageBoxButtons.OK);
+                        if (selectedOption == System.Windows.Forms.DialogResult.OK)
+                        {
+                            Environment.Exit(1);
+                            return;
+                        }
+                    }
+                    
                 }
 
-                thtml = File.ReadAllText(appListFilePath);
-                idlist = JsonConvert.DeserializeObject(thtml);
-                idlist = idlist["applist"]["apps"];
+                if (isNewList)
+                {
+                    configFile.listFileSize = thtml.Length;
+                }
+
+                
+
 
             });
             using (var fbd = new FolderBrowserDialog())
             {
+                string temppath;
+                string tempsteampath = "";
                 fbd.Description = "Select Steam folder";
                 fbd.RootFolder = Environment.SpecialFolder.Desktop;
-                string temppath = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "SteamPath", "").ToString().Replace(@"/", @"\") + @"\AppList";
+                if (Directory.Exists(configFile.steamFolder))
+                {
+                    temppath = configFile.steamFolder + @"\AppList";
+                    tempsteampath = configFile.steamFolder;
+                }
+                else
+                {
+                    tempsteampath = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "SteamPath", "").ToString().Replace(@"/", @"\");
+                    temppath =  tempsteampath + @"\AppList";
+                }
+
                 fbd.SelectedPath = temppath;
 
                 DialogResult result = System.Windows.Forms.DialogResult.No;
-                var files = new List<string>();
+                
                 if (Directory.Exists(temppath))
                 {
                     result = System.Windows.Forms.DialogResult.OK;
-                    files = Directory.GetFiles(temppath).ToList().CustomSort().ToList();
+                    
+                    configFile.steamFolder = tempsteampath;
                 }
                 else
                 {
                     result = fbd.ShowDialog();
+                    tempsteampath = fbd.SelectedPath;
                     temppath = fbd.SelectedPath + @"\AppList";
                     if (result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(temppath))
                     {
                         //System.Windows.Forms.MessageBox.Show(fbd.SelectedPath);
 
-                        files = Directory.GetFiles(fbd.SelectedPath).ToList().CustomSort().ToList();
+                        //filesList = Directory.GetFiles(fbd.SelectedPath).ToList().CustomSort().ToList();
 
                     }
                 }
@@ -125,32 +173,13 @@ namespace App_List_Organizer
                 if (result == System.Windows.Forms.DialogResult.OK && Directory.Exists(temppath))
                 {
                     appListPath = temppath;
-                    //System.Windows.Forms.MessageBox.Show(fbd.SelectedPath);
+                    configFile.steamFolder = tempsteampath;
 
+                    
 
-
-                    //System.Windows.Forms.MessageBox.Show("Files found: " + files.Length.ToString(), "Message");
-                    foreach (string a in files)
-                    {
-                        Grid nline = listBox.Items[listBox.Items.Add(CloneUsingXaml(nlist))] as Grid;
-                        TextBlock t1 = nline.Children[0] as TextBlock;
-                        t1.Text = System.IO.Path.GetFileName(a);
-                        TextBlock t2 = nline.Children[1] as TextBlock;
-                        t2.Text = File.ReadAllText(a);
-
-                        Newtonsoft.Json.Linq.JArray b = idlist;
-                        var c = b.FirstOrDefault(e => e["appid"].ToString() == t2.Text);
-                        if (c != null)
-                        {
-                            TextBlock t3 = nline.Children[2] as TextBlock;
-                            t3.Text = c["name"].ToString();
-                        }
-                        else
-                        {
-                            TextBlock t3 = nline.Children[2] as TextBlock;
-                            t3.Text = "Error";
-                        }
-                    }
+                    LoadProfileList();
+                    
+                    
                 }
                 else
                 {
@@ -178,25 +207,87 @@ namespace App_List_Organizer
             }
 
             comboBox.ItemsSource = idListSorted;
+            configFile.SaveFile(configFilePath);
+
+            
+
             isLoaded = true;
+            Console.WriteLine(cBox_profiles.Items.Count);
+            if(cBox_profiles.Items.Count - 1 < configFile.selectedProfile)
+            {
+                cBox_profiles.SelectedIndex = 1;
+            }
+            else
+            {
+                cBox_profiles.SelectedIndex = configFile.selectedProfile;
+            }
+            
 
         }
 
-        public long GetFileSize(string url)
+        private void LoadFileList(string dirPath, int selectID)
         {
-            long result = -1;
-
-            System.Net.WebRequest req = System.Net.WebRequest.Create(url);
-            req.Method = "HEAD";
-            using (System.Net.WebResponse resp = req.GetResponse())
+            listBox.Items.Clear();
+            if (selectID == 0)
             {
-                if (long.TryParse(resp.Headers.Get("Content-Length"), out long ContentLength))
+                List<string> filesList = Directory.GetFiles(dirPath).ToList().CustomSort().ToList();
+                foreach (string a in filesList)
                 {
-                    result = ContentLength;
+                    Grid nline = listBox.Items[listBox.Items.Add(CloneUsingXaml(nlist))] as Grid;
+                    TextBlock t1 = nline.Children[0] as TextBlock;
+                    t1.Text = System.IO.Path.GetFileName(a);
+                    TextBlock t2 = nline.Children[1] as TextBlock;
+                    t2.Text = File.ReadAllText(a);
+
+                    Newtonsoft.Json.Linq.JArray b = idlist;
+                    var c = b.FirstOrDefault(e => e["appid"].ToString() == t2.Text);
+                    if (c != null)
+                    {
+                        TextBlock t3 = nline.Children[2] as TextBlock;
+                        t3.Text = c["name"].ToString();
+                    }
+                    else
+                    {
+                        TextBlock t3 = nline.Children[2] as TextBlock;
+                        t3.Text = "Error";
+                    }
                 }
             }
+            else
+            {
+                int i = 0;
+                foreach (int appId in configFile.profileList[selectID-1].idList)
+                {
+                    Grid nline = listBox.Items[listBox.Items.Add(CloneUsingXaml(nlist))] as Grid;
+                    TextBlock t1 = nline.Children[0] as TextBlock;
+                    t1.Text = i.ToString() + ".txt";
+                    TextBlock t2 = nline.Children[1] as TextBlock;
+                    t2.Text = appId.ToString();
 
-            return result;
+                    Newtonsoft.Json.Linq.JArray b = idlist;
+                    var c = b.FirstOrDefault(e => e["appid"].ToString() == t2.Text);
+                    if (c != null)
+                    {
+                        TextBlock t3 = nline.Children[2] as TextBlock;
+                        t3.Text = c["name"].ToString();
+                    }
+                    else
+                    {
+                        TextBlock t3 = nline.Children[2] as TextBlock;
+                        t3.Text = "Error";
+                    }
+                    i++;
+                }
+            }
+        }
+
+        private void LoadProfileList()
+        {
+            cBox_profiles.Items.Clear();
+            cBox_profiles.Items.Add("--AppList Folder--");
+            configFile.profileList.ForEach(profile => {
+                cBox_profiles.Items.Add(profile.name);
+            });
         }
 
         string ReadTextFromUrl(string url)
@@ -226,14 +317,14 @@ namespace App_List_Organizer
             {
                 TextBlock txbl = lbi.Children[1] as TextBlock;
                 idbox.Text = txbl.Text;
-                loadfromid();
+                loadFromId();
             }
         }
 
         private void textBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             
-            loadfromid();
+            loadFromId();
         }
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -264,12 +355,12 @@ namespace App_List_Organizer
             {
                 e.CancelCommand();
             }
-            loadfromid();
+            loadFromId();
         }
 
         private string temptext = "";
 
-        private void loadfromid()
+        private void loadFromId()
         {
             if (idlist != null)
             {
@@ -284,7 +375,7 @@ namespace App_List_Organizer
             }
         }
 
-        private void loadfromname()
+        private void loadFromName()
         {
             if (idlist != null)
             {
@@ -303,7 +394,7 @@ namespace App_List_Organizer
         {
             if (e.Key == Key.Return)
             {
-                loadfromid();
+                loadFromId();
 
             }
 
@@ -316,18 +407,8 @@ namespace App_List_Organizer
                     refreshlist();
                     listBox.SelectedIndex = tindex;
                 }
-
-                
             }
-
-
-            
         }
-
-
-
-
-
         private void ComboBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (comboBox.Text != "" && comboBox.Text != temptext && 1 == 2)
@@ -365,7 +446,7 @@ namespace App_List_Organizer
                 tb.Select(tb.Text.Length, 0);
 
             }
-            loadfromname();
+            loadFromName();
         }
         private void clearcombo()
         {
@@ -399,7 +480,8 @@ namespace App_List_Organizer
             {
                 if (sender == button_Edit)
                 {
-                    if (listBox.SelectedIndex > 1 && listBox.SelectedIndex <= listBox.Items.Count)
+
+                    if (listBox.SelectedIndex > -1 && listBox.SelectedIndex <= listBox.Items.Count)
                     {
                         Grid tempgrid = listBox.SelectedItem as Grid;
                         TextBlock textBlock1 = tempgrid.Children[1] as TextBlock;
@@ -442,50 +524,152 @@ namespace App_List_Organizer
                             file.Write(tb2.Text);
                         }
                     }
-
-
-
                 }
             }
-            /*
-            string temppathhook = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "SteamPath", "").ToString().Replace(@"/", @"\") + @"\";
-            if (sender == button_Run_NoHook)
+        }
+
+        private void CBox_profiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded)
+                return;
+            Console.WriteLine("S " +configFile.selectedProfile);
+            Console.WriteLine("S2 " + cBox_profiles.SelectedIndex);
+            if(cBox_profiles.Items.Count - 1 < configFile.selectedProfile)
             {
-                File.Copy(temppathhook + @"green\DllInjectornohook.ini", temppathhook + @"DllInjector.ini", true);
-                File.Copy(temppathhook + @"green\DLLInjector.exe", temppathhook + @"DLLInjector.exe", true);
-                File.Copy(temppathhook + @"green\GreenLuma_Reborn_x86.dll", temppathhook + @"GreenLuma_Reborn_x86.dll", true);
-                File.Copy(temppathhook + @"green\bin\x64launcher_o.exe", temppathhook + @"bin\x64launcher.exe", true);
-
-
-                var cParams = @" -DisablePreferSystem32Images -CreateFile1 NoHook.bin -CreateFile2 NoQuestion.bin";
-                ProcessStartInfo startInfo = new ProcessStartInfo(string.Concat(temppathhook, "DLLInjector.exe"));
-                startInfo.Arguments = cParams;
-                startInfo.UseShellExecute = false;
-                startInfo.WorkingDirectory = temppathhook;
-                Process.Start(startInfo);
-
-
+                cBox_profiles.SelectedIndex = 0;
             }
+            cBox_profiles.SelectedIndex = Math.Max(cBox_profiles.SelectedIndex, 0);
+            configFile.selectedProfile = cBox_profiles.SelectedIndex;
+            configFile.SaveFile(configFilePath);
+            LoadFileList(appListPath, configFile.selectedProfile);
+        }
 
-            if (sender == button_Run_Hook)
+        private void Button_Profile_Click(object sender, RoutedEventArgs e)
+        {
+            if (isLoaded)
             {
-                File.Copy(temppathhook + @"green\DllInjectorhook.ini", temppathhook + @"DllInjector.ini", true);
-                File.Copy(temppathhook + @"green\DLLInjector.exe", temppathhook + @"DLLInjector.exe", true);
-                File.Copy(temppathhook + @"green\GreenLuma_Reborn_x86.dll", temppathhook + @"GreenLuma_Reborn_x86.dll", true);
-                File.Copy(temppathhook + @"green\GreenLuma_Reborn_x64.dll", temppathhook + @"GreenLuma_Reborn_x64.dll", true);
-                File.Copy(temppathhook + @"green\bin\x64launcher.exe", temppathhook + @"bin\x64launcher.exe", true);
+                if (sender == Button_PAdd)
+                {
+                    string input = Interaction.InputBox("Type Name for profile",
+                       "Type Name for profile",
+                       "New Profile");
+                    if (input != "")
+                    {
+                        cBox_profiles.Items.Add(input);
+                        configFile.profileList.Add(new ProfileListContent());
+                        configFile.profileList.Last().name = input;
+                        cBox_profiles.SelectedIndex = cBox_profiles.Items.Count - 1;
+                    }
+                }
 
-                var cParams = @" -DisablePreferSystem32Images -CreateFile1 NoQuestion.bin";
-                ProcessStartInfo startInfo = new ProcessStartInfo(string.Concat(temppathhook, "DLLInjector.exe"));
-                startInfo.Arguments = cParams;
-                startInfo.UseShellExecute = false;
-                startInfo.WorkingDirectory = temppathhook;
-                Process.Start(startInfo);
+                if (sender == Button_PCopy)
+                {
+                    string input = Interaction.InputBox("Type Name for profile",
+                       "Type Name for profile",
+                       "New Profile");
+                    if (input != "")
+                    {
+                        cBox_profiles.Items.Add(input);
+                        configFile.profileList.Add(new ProfileListContent());
+                        configFile.profileList.Last().name = input;
+                        foreach (Grid a in listBox.Items)
+                        {
+                            TextBlock temptb = a.Children[1] as TextBlock;
+                            configFile.profileList.Last().idList.Add(Int32.Parse(temptb.Text));
+                        }
+                        cBox_profiles.SelectedIndex = cBox_profiles.Items.Count - 1;
+                    }
+                }
+
+                if (sender == Button_PDelete)
+                {
+                    if(configFile.selectedProfile > 0)
+                    {
+                        configFile.profileList.RemoveAt(configFile.selectedProfile - 1);
+                        cBox_profiles.Items.RemoveAt(configFile.selectedProfile);
+                        cBox_profiles.Items.Refresh();
+                        
+                    }
+                }
+
+                if (sender == Button_PSave)
+                {
+                    if (configFile.selectedProfile == 0)
+                    {
+                        string input = Interaction.InputBox("Type Name for profile",
+                      "Type Name for profile",
+                      "New Profile");
+                        if (input != "")
+                        {
+                            cBox_profiles.Items.Add(input);
+                            configFile.profileList.Add(new ProfileListContent());
+                            configFile.profileList.Last().name = input;
+                            foreach (Grid a in listBox.Items)
+                            {
+                                TextBlock temptb = a.Children[1] as TextBlock;
+                                configFile.profileList.Last().idList.Add(Int32.Parse(temptb.Text));
+                            }
+                            cBox_profiles.SelectedIndex = cBox_profiles.Items.Count - 1;
+                        }
+                    }
+                    else
+                    {
+                        foreach (Grid a in listBox.Items)
+                        {
+                            TextBlock temptb = a.Children[1] as TextBlock;
+                            configFile.profileList[configFile.selectedProfile - 1].idList.Add(Int32.Parse(temptb.Text));
+                        }
+                        cBox_profiles.SelectedIndex = cBox_profiles.Items.Count - 1;
+                    }
+                }
             }
-            */
         }
     }
 
+    public class ConfigFile
+    {
+        public long listFileSize = 0;
+        public int selectedProfile = 0;
+        public string steamFolder = "";
+        public List<ProfileListContent> profileList = new List<ProfileListContent>();
+
+        public ConfigFile LoadFile(string configFilePath)
+        {
+            ConfigFile configFile;
+            if (File.Exists(configFilePath))
+            {
+                try
+                {
+                    configFile = JsonConvert.DeserializeObject<ConfigFile>(File.ReadAllText(configFilePath));
+                }
+                catch(Exception)
+                {
+                    configFile = new ConfigFile();
+                    File.WriteAllText(configFilePath, JsonConvert.SerializeObject(configFile));
+                }
+
+            }
+            else
+            {
+                configFile = new ConfigFile();
+                File.WriteAllText(configFilePath, JsonConvert.SerializeObject(configFile));
+            }
+
+            return configFile;
+        }
+
+        public void SaveFile(string configFilePath)
+        {
+            File.WriteAllText(configFilePath, JsonConvert.SerializeObject(this));
+        }
+
+    }
+
+    public class ProfileListContent
+    {
+        public string name = "";
+        public List<int> idList = new List<int>();
+    }
 
 
 

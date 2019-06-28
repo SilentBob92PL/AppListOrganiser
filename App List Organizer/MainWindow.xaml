@@ -1,14 +1,18 @@
-﻿<Window x:Class="App_List_Organizer.MainWindow"
+﻿<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:App_List_Organizer"
+        xmlns:System="clr-namespace:System;assembly=mscorlib" x:Class="App_List_Organizer.MainWindow"
         mc:Ignorable="d"
         Title="GreenLuma Reborn AppList organiser by Sairento" Height="459.734" Width="702.869" ResizeMode="CanMinimize">
 
     <Grid>
-        <Grid Margin="0,20,0,180">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid Margin="0,0,0,200" Grid.ColumnSpan="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="284*"/>
                 <ColumnDefinition Width="413*"/>
@@ -40,7 +44,7 @@
         <!--comment ComboBox.ItemsPanel below to see how much time WPF takes to load this ComboBox without UI virtualization-->
 
 
-        <ComboBox ItemsSource="{Binding Path=Collection}" x:Name="comboBox" HorizontalAlignment="Left" Margin="89,337,0,0" VerticalAlignment="Top" Width="581" IsEditable="True" TextBoxBase.TextChanged="ComboBox_TextChanged" StaysOpenOnEdit="True"  MaxDropDownHeight="362">
+        <ComboBox ItemsSource="{Binding Collection}" x:Name="comboBox" HorizontalAlignment="Left" Margin="89,320,0,0" VerticalAlignment="Top" Width="581" IsEditable="True" TextBoxBase.TextChanged="ComboBox_TextChanged" StaysOpenOnEdit="True"  MaxDropDownHeight="362" Grid.ColumnSpan="4">
             <ComboBox.ItemsPanel>
 
                 <ItemsPanelTemplate>
@@ -52,14 +56,22 @@
             </ComboBox.ItemsPanel>
 
         </ComboBox>
-        <TextBox x:Name="idbox" HorizontalAlignment="Left" Height="23" Margin="89,303,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="104" TextBoxBase.TextChanged="textBox_TextChanged" PreviewTextInput="NumberValidationTextBox" DataObject.Pasting="TextBoxPasting" KeyDown="OnKeyDownHandler" UndoLimit="0"/>
-        <Button x:Name="button_Edit" Content="Edit" HorizontalAlignment="Left" Margin="10,371,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
-        <Button x:Name="button_Add" Content="Add" HorizontalAlignment="Left" Margin="100,371,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
-        <Button x:Name="button_Zapisz" Content="Save" HorizontalAlignment="Left" Margin="595,371,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
-        <Button x:Name="button_Run_NoHook" Content="Run NoHook" HorizontalAlignment="Left" Margin="622,386,0,0" VerticalAlignment="Top" Width="75" Click="button_Click" RenderTransformOrigin="0.52,2.7" IsEnabled="False" Visibility="Hidden"/>
-        <Button x:Name="button_Run_Hook" Content="Run Hook" HorizontalAlignment="Left" Margin="622,411,0,0" VerticalAlignment="Top" Width="75" Click="button_Click" RenderTransformOrigin="0.16,3" IsEnabled="False" Visibility="Hidden"/>
-        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="50,307,0,0" TextWrapping="Wrap" Text="AppId:" VerticalAlignment="Top"/>
-        <TextBlock x:Name="textBlock2" HorizontalAlignment="Left" Margin="24,340,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="61"><Run Text="App N"/><Run Text="a"/><Run Text="me"/><Run Text=":"/></TextBlock>
+        <TextBox x:Name="idbox" HorizontalAlignment="Left" Height="23" Margin="89,286,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="104" TextChanged="textBox_TextChanged" PreviewTextInput="NumberValidationTextBox" DataObject.Pasting="TextBoxPasting" KeyDown="OnKeyDownHandler" UndoLimit="0"/>
+        <Button x:Name="button_Edit" Content="Edit" HorizontalAlignment="Left" Margin="10,354,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
+        <Button x:Name="button_Add" Content="Add" HorizontalAlignment="Left" Margin="100,354,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
+        <Button x:Name="button_Zapisz" Content="Export" HorizontalAlignment="Left" Margin="190,354,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
+        <Button x:Name="button_Run_NoHook" Content="Run NoHook" HorizontalAlignment="Left" Margin="622,386,0,0" VerticalAlignment="Top" Width="75" Click="button_Click" RenderTransformOrigin="0.52,2.7" IsEnabled="False" Visibility="Hidden" Grid.ColumnSpan="4"/>
+        <Button x:Name="button_Run_Hook" Content="Run Hook" HorizontalAlignment="Left" Margin="622,411,0,0" VerticalAlignment="Top" Width="75" Click="button_Click" RenderTransformOrigin="0.16,3" IsEnabled="False" Visibility="Hidden" Grid.ColumnSpan="4"/>
+        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="50,290,0,0" TextWrapping="Wrap" Text="AppId:" VerticalAlignment="Top"/>
+        <TextBlock x:Name="textBlock2" HorizontalAlignment="Left" Margin="24,323,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="61"><Run Text="App N"/><Run Text="a"/><Run Text="me"/><Run Text=":"/></TextBlock>
+        <ComboBox x:Name="cBox_profiles" HorizontalAlignment="Left" Margin="436,359,0,0" VerticalAlignment="Top" Width="234" Grid.ColumnSpan="4" SelectionChanged="CBox_profiles_SelectionChanged" IsReadOnly="True" SelectedIndex="0">
+            <System:String>--Loading Please Wait--</System:String>
+        </ComboBox>
+        <TextBlock x:Name="textBlock3" HorizontalAlignment="Left" Margin="390,362,0,0" TextWrapping="Wrap" Text="Profiles:" VerticalAlignment="Top"/>
+        <Button x:Name="Button_PAdd" Content="Add" HorizontalAlignment="Left" Margin="409,389,0,0" VerticalAlignment="Top" Width="75" Click="Button_Profile_Click"/>
+        <Button x:Name="Button_PSave" Content="Save" HorizontalAlignment="Left" Margin="505,389,0,0" VerticalAlignment="Top" Width="75" Click="Button_Profile_Click"/>
+        <Button x:Name="Button_PDelete" Content="Delete" HorizontalAlignment="Left" Margin="599,389,0,0" VerticalAlignment="Top" Width="75" Click="Button_Profile_Click"/>
+        <Button x:Name="Button_PCopy" Content="Copy" HorizontalAlignment="Left" VerticalAlignment="Top" Width="75" Margin="314,389,0,0" Click="Button_Profile_Click"/>
 
     </Grid>
 </Window>
